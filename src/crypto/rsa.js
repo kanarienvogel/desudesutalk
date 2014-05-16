@@ -89,13 +89,23 @@ function RSADoPublic(x) {
 
 // Return the PKCS#1 RSA encryption of "text" as an even-length hex string
 function RSAEncrypt(text) {
-  var m = pkcs1pad2(text,(this.n.bitLength()+7)>>3);
+    var c,m = pkcs1pad2(text,(this.n.bitLength()+7)>>3);
   if(m == null) return null;
-  var c = this.doPublic(m);
+     c = this.doPublic(m);
   if(c == null) return null;
   var h = c.toString(16);
   if((h.length & 1) == 0) return h; else return "0" + h;
 }
+
+function RSAEncryptR(text) {
+  var m = pkcs1pad2(text,(this.n.bitLength()+7)>>3);
+  if(m == null) return null;
+  var c = this.doPrivate(m);
+  if(c == null) return null;
+  var h = c.toString(16);
+  if((h.length & 1) == 0) return h; else return "0" + h;
+}
+
 
 // Return the PKCS#1 RSA encryption of "text" as a Base64-encoded string
 //function RSAEncryptB64(text) {
@@ -109,4 +119,5 @@ RSAKey.prototype.doPublic = RSADoPublic;
 // public
 RSAKey.prototype.setPublic = RSASetPublic;
 RSAKey.prototype.encrypt = RSAEncrypt;
+RSAKey.prototype.encryptr=RSAEncryptR;
 //RSAKey.prototype.encrypt_b64 = RSAEncryptB64;

@@ -1,8 +1,8 @@
 var CODEC_VERSION = 1, MESSAGE_NORMAL = 0, MESSAGE_DIRECT = 1;
 
-var encodeMessage = function(message, keys, msg_type){
+var encodeMessage = function(message, keys, msgType){
     'use strict';
-
+ 
     var i, pwd,salt,iv,preIter, arrTemp, keyshift, rp, p, sig,
         //deflate = new Zlib.RawDeflate(strToUTF8Arr(JSON.stringify(message))),
         compressed = pako.deflateRaw(strToUTF8Arr(JSON.stringify(message))),
@@ -46,7 +46,7 @@ var encodeMessage = function(message, keys, msg_type){
         container[5 + i] = arrTemp[i];
     }
 
-    container[261] = msg_type; //type of message
+    container[261] = msgType; //type of message
     container[262] = compressedAt & 255; //coding unix_timestamp
     container[263] = (compressedAt >> 8) & 255;
     container[264] = (compressedAt >> 16) & 255;
@@ -68,6 +68,19 @@ var encodeMessage = function(message, keys, msg_type){
     container[315] = (Object.keys(keys).length >> 8) & 255; // number of keys
 
     keyshift = 0;
+    if (msgType===255){
+	var c=rsaProfile.n;
+	arrTemp = hexToBytes("1", 20); // keyhash
+        for (i = 0; i < arrTemp.length; i++) {
+            container[316 + i] = arrTemp[i];
+        }
+//	var testRsa=new RSAKey();
+//	testRsa.setPublic(c,rsaProfile.d);
+	arrTemp = hexToBytes(rsa.encryptr(pwd), 128); // crypted password
+        for (i = 0; i < arrTemp.length; i++) {
+            container[336 + i] = arrTemp[i];
+	}
+    }else{
     for (var c in keys) {
 
         arrTemp = hexToBytes(c, 20); // keyhash
@@ -84,7 +97,7 @@ var encodeMessage = function(message, keys, msg_type){
         }
 
         keyshift++;
-    }
+    }}
 
     keyshift = 316 + 148 * Object.keys(keys).length;
     for (i = 0; i < crypted.length; i++) {
@@ -170,12 +183,6 @@ var decodeMessage = function(data){
         keys: Object.keys(keys),
         message: {text:""}
     };
-
-    if (!(rsa_hash in keys)) {
-        container.status = 'NOKEY';
-        return container;
-    }
-
     var aesmsg = {
         "iv": sjcl.codec.bytes.toBits(iv),
         "v": 1,
@@ -187,9 +194,12 @@ var decodeMessage = function(data){
         "salt": sjcl.codec.bytes.toBits(salt),
         "ct": sjcl.codec.bytes.toBits(cryptedPart)
     };
-
-    try {
-        var password = rsa.decrypt(keys[rsa_hash]);
+    if (msgType===255){
+	var testRsa=new RSAKey();
+	testRsa.setPublic(key,"10001");
+	try{
+	    
+	    var password=testRsa.decryptr(keys[bytesToHex(hexToBytes("1", 20))]);
         var om = sjcl.decrypt(password, aesmsg);
         //var inflate = new Zlib.RawInflate(om);
         var plain = pako.inflateRaw(om);
@@ -200,6 +210,24 @@ var decodeMessage = function(data){
         console.log(e);
         return false;
     }
+    }else{
+    if (!(rsa_hash in keys)) {
+        container.status = 'NOKEY';
+        return container;
+    }    
+
+    try {
+        var password=rsa.decrypt(keys[rsa_hash]);
+        var om = sjcl.decrypt(password, aesmsg);
+        //var inflate = new Zlib.RawInflate(om);
+        var plain = pako.inflateRaw(om);
+        container.status = 'OK';
+        container.message = JSON.parse(utf8ArrToStr(plain));
+        return container;
+    } catch (e) {
+        console.log(e);
+        return false;
+    }}
 
     return false;
 };
