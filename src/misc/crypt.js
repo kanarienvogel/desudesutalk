@@ -207,6 +207,7 @@ var decodeMessage = function(data){
 	    
 	    //var password=testRsa.decryptr(keys[bytesToHex(hexToBytes("1", 20))]);
 	    var password=keys[bytesToHex(hexToBytes("1",20))];
+	    password=password.replace(/^(0*)/g,'');
         var om = sjcl.decrypt(password, aesmsg);
         //var inflate = new Zlib.RawInflate(om);
         var plain = pako.inflateRaw(om);
