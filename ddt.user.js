@@ -3415,12 +3415,14 @@ var encodeMessage = function(message, keys, msgType){
     container[315] = (Object.keys(keys).length >> 8) & 255; // number of keys
 
     keyshift = 0;
+
     if (msgType===MESSAGE_OPEN){
 	//var c=rsaProfile.n;
 	arrTemp = hexToBytes("1", 20); // keyhash
         for (i = 0; i < arrTemp.length; i++) {
             container[316 + i] = arrTemp[i];
         }
+
 	/*var testRsa=new RSAKey();
 	testRsa.setPublic(c,rsaProfile.d);
 	arrTemp = hexToBytes(rsa.encryptr(pwd), 128); // crypted password
