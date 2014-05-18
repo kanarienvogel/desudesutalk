@@ -506,7 +506,7 @@ var replytoMsgDirect = function(e) {
     }
 
     if(!(usr_id in contacts)){
-        alert('Unknow contact!');
+        alert('Unknown contact!');
         return false;
     }
 

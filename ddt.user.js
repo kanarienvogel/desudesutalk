@@ -3188,6 +3188,10 @@ var getContactHTML = function(hash, key) {
     if (hash == rsa_hash) {
         return '<strong style="color: #090; font-style: italic" class="hidbord_clickable hidbord_usr_reply" alt="'+hash+'">Me</strong>';
     }
+    
+    if (hash==bytesToHex(hexToBytes("1",20))) {
+        return '<em style="color: #0f0" class="" alt="'+hash+'">Broadcast</em>';
+    }
 
     if (!(hash in contacts) && key) {
         return '<em style="color: #00f" class="hidbord_clickable hidbord_usr_reply" alt="'+hash+'">Unknown</em> [<a href="javascript:;" alt="' + key + '" class="hidbord_addcntct_link">add</a>]';
@@ -3200,6 +3204,8 @@ var getContactHTML = function(hash, key) {
     if ('hide' in contacts[hash] && contacts[hash].hide == 1) {
         return '<strike class="hidbord_clickable hidbord_usr_reply" alt="'+hash+'">' + safe_tags(contacts[hash].name) + '</strike>';
     }
+
+    
 
     return '<strong class="hidbord_clickable hidbord_usr_reply" alt="'+hash+'">' + safe_tags(contacts[hash].name) + '</strong>';
 
@@ -4501,7 +4507,7 @@ var replytoMsgDirect = function(e) {
     }
 
     if(!(usr_id in contacts)){
-        alert('Unknow contact!');
+        alert('Unknown contact!');
         return false;
     }
 
