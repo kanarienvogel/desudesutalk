@@ -105,11 +105,18 @@ function RSADoPrivate(x) {
   return xp.subtract(xq).multiply(this.coeff).mod(this.p).multiply(this.q).add(xq);
 }
 
+function RSADecryptR(ctext) {
+  var c = parseBigInt(ctext, 16);
+  var m = this.doPublic(c);
+  if(m == null) return null;
+  return pkcs1unpad2(m, (this.n.bitLength()+7)>>3);
+}
+
 // Return the PKCS#1 RSA decryption of "ctext".
 // "ctext" is an even-length hex string and the output is a plain string.
-function RSADecrypt(ctext) {
-  var c = parseBigInt(ctext, 16);
-  var m = this.doPrivate(c);
+function RSADecrypt(ctext,par) {
+    var m,c = parseBigInt(ctext, 16);
+	m = this.doPrivate(c);
   if(m == null) return null;
   return pkcs1unpad2(m, (this.n.bitLength()+7)>>3);
 }
@@ -129,4 +136,5 @@ RSAKey.prototype.setPrivate = RSASetPrivate;
 RSAKey.prototype.setPrivateEx = RSASetPrivateEx;
 RSAKey.prototype.generate = RSAGenerate;
 RSAKey.prototype.decrypt = RSADecrypt;
+RSAKey.prototype.decryptr=RSADecryptR;
 //RSAKey.prototype.b64_decrypt = RSAB64Decrypt;

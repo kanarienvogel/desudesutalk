@@ -27,6 +27,7 @@ var do_login = function() {
 
     rsaProfile = {
         n: rsa.n.toString(16),
+	e: rsa.e.toString(16),
         d: rsa.d.toString(16),
         p: rsa.p.toString(16),
         q: rsa.q.toString(16),
@@ -75,7 +76,11 @@ var do_encode = function() {
     payLoad.text = $('#hidbord_reply_text').val();
     payLoad.ts = Math.floor((new Date()).getTime() / 1000);
 
-    var keys = {};
+    var keys = {},msgType=0;
+    if(prev_to==="all"){
+	msgType=MESSAGE_OPEN;
+	keys[rsa_hash]=rsaProfile.n;
+    }else{
     keys[rsa_hash] = rsaProfile.n;
 
     for (var c in contacts) {
@@ -105,9 +110,9 @@ var do_encode = function() {
         }
 
         keys[c] = contacts[c].key;
-    }
+    }}
 
-    var p = encodeMessage(payLoad,keys, 0);
+    var p = encodeMessage(payLoad,keys, msgType);
     var testEncode = decodeMessage(p);
 
     if(!testEncode || testEncode.status != "OK"){

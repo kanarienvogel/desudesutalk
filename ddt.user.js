@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         DesuDesuTalk
-// @namespace    udp://desushelter/*
-// @version      0.1.26
+// @name         DesuDesuTalk_k
+// @namespace    udp://desushelter_k/*
+// @version      0.1.26_k
 // @description  Write something useful!
 // @include      http://dobrochan.com/*/res/*
 // @include      http://dobrochan.ru/*/res/*
@@ -1937,13 +1937,23 @@ function RSADoPublic(x) {
 
 // Return the PKCS#1 RSA encryption of "text" as an even-length hex string
 function RSAEncrypt(text) {
-  var m = pkcs1pad2(text,(this.n.bitLength()+7)>>3);
+    var c,m = pkcs1pad2(text,(this.n.bitLength()+7)>>3);
   if(m == null) return null;
-  var c = this.doPublic(m);
+     c = this.doPublic(m);
   if(c == null) return null;
   var h = c.toString(16);
   if((h.length & 1) == 0) return h; else return "0" + h;
 }
+
+function RSAEncryptR(text) {
+  var m = pkcs1pad2(text,(this.n.bitLength()+7)>>3);
+  if(m == null) return null;
+  var c = this.doPrivate(m);
+  if(c == null) return null;
+  var h = c.toString(16);
+  if((h.length & 1) == 0) return h; else return "0" + h;
+}
+
 
 // Return the PKCS#1 RSA encryption of "text" as a Base64-encoded string
 //function RSAEncryptB64(text) {
@@ -1957,6 +1967,7 @@ RSAKey.prototype.doPublic = RSADoPublic;
 // public
 RSAKey.prototype.setPublic = RSASetPublic;
 RSAKey.prototype.encrypt = RSAEncrypt;
+RSAKey.prototype.encryptr=RSAEncryptR;
 //RSAKey.prototype.encrypt_b64 = RSAEncryptB64;
 
 // Depends on rsa.js and jsbn2.js
@@ -2066,11 +2077,18 @@ function RSADoPrivate(x) {
   return xp.subtract(xq).multiply(this.coeff).mod(this.p).multiply(this.q).add(xq);
 }
 
+function RSADecryptR(ctext) {
+  var c = parseBigInt(ctext, 16);
+  var m = this.doPublic(c);
+  if(m == null) return null;
+  return pkcs1unpad2(m, (this.n.bitLength()+7)>>3);
+}
+
 // Return the PKCS#1 RSA decryption of "ctext".
 // "ctext" is an even-length hex string and the output is a plain string.
-function RSADecrypt(ctext) {
-  var c = parseBigInt(ctext, 16);
-  var m = this.doPrivate(c);
+function RSADecrypt(ctext,par) {
+    var m,c = parseBigInt(ctext, 16);
+	m = this.doPrivate(c);
   if(m == null) return null;
   return pkcs1unpad2(m, (this.n.bitLength()+7)>>3);
 }
@@ -2090,6 +2108,7 @@ RSAKey.prototype.setPrivate = RSASetPrivate;
 RSAKey.prototype.setPrivateEx = RSASetPrivateEx;
 RSAKey.prototype.generate = RSAGenerate;
 RSAKey.prototype.decrypt = RSADecrypt;
+RSAKey.prototype.decryptr=RSADecryptR;
 //RSAKey.prototype.b64_decrypt = RSAB64Decrypt;
 
 //
@@ -3012,6 +3031,7 @@ var do_login = function() {
 
     rsaProfile = {
         n: rsa.n.toString(16),
+	e: rsa.e.toString(16),
         d: rsa.d.toString(16),
         p: rsa.p.toString(16),
         q: rsa.q.toString(16),
@@ -3060,7 +3080,11 @@ var do_encode = function() {
     payLoad.text = $('#hidbord_reply_text').val();
     payLoad.ts = Math.floor((new Date()).getTime() / 1000);
 
-    var keys = {};
+    var keys = {},msgType=0;
+    if(prev_to==="all"){
+	msgType=MESSAGE_OPEN;
+	keys[rsa_hash]=rsaProfile.n;
+    }else{
     keys[rsa_hash] = rsaProfile.n;
 
     for (var c in contacts) {
@@ -3090,9 +3114,9 @@ var do_encode = function() {
         }
 
         keys[c] = contacts[c].key;
-    }
+    }}
 
-    var p = encodeMessage(payLoad,keys, 0);
+    var p = encodeMessage(payLoad,keys, msgType);
     var testEncode = decodeMessage(p);
 
     if(!testEncode || testEncode.status != "OK"){
@@ -3183,7 +3207,7 @@ var getContactHTML = function(hash, key) {
 
 var contactsSelector = function(){
     "use strict";
-    var code = '<div id="hidbord_contacts_select"><strong>to:</strong>&nbsp;<select id="hidbord_cont_type"><option selected="selected" value="all">All</option><option value="direct">Direct</option><option disabled="disabled">Groups:</option>';
+    var code = '<div id="hidbord_contacts_select"><strong>to:</strong>&nbsp;<select id="hidbord_cont_type"><option selected="selected" value="all">All</option><option selected="selected" value="all_cont">All contacts</option><option value="direct">Direct</option><option disabled="disabled">Groups:</option>';
 
     for (var i = 0; i < cont_groups.length; i++) {
         code += '<option value="group_'+safe_tags(cont_groups[i])+'">'+safe_tags(cont_groups[i])+'</option>';
@@ -3321,11 +3345,11 @@ if (localStorage.getItem('magic_desu_contacts')) {
 //    console.log(contacts);
 }
 
-var CODEC_VERSION = 1, MESSAGE_NORMAL = 0, MESSAGE_DIRECT = 1;
+var CODEC_VERSION = 1, MESSAGE_NORMAL = 0, MESSAGE_DIRECT = 1, MESSAGE_OPEN=255;
 
-var encodeMessage = function(message, keys, msg_type){
+var encodeMessage = function(message, keys, msgType){
     'use strict';
-
+ 
     var i, pwd,salt,iv,preIter, arrTemp, keyshift, rp, p, sig,
         //deflate = new Zlib.RawDeflate(strToUTF8Arr(JSON.stringify(message))),
         compressed = pako.deflateRaw(strToUTF8Arr(JSON.stringify(message))),
@@ -3369,7 +3393,7 @@ var encodeMessage = function(message, keys, msg_type){
         container[5 + i] = arrTemp[i];
     }
 
-    container[261] = msg_type; //type of message
+    container[261] = msgType; //type of message
     container[262] = compressedAt & 255; //coding unix_timestamp
     container[263] = (compressedAt >> 8) & 255;
     container[264] = (compressedAt >> 16) & 255;
@@ -3391,6 +3415,23 @@ var encodeMessage = function(message, keys, msg_type){
     container[315] = (Object.keys(keys).length >> 8) & 255; // number of keys
 
     keyshift = 0;
+    if (msgType===MESSAGE_OPEN){
+	//var c=rsaProfile.n;
+	arrTemp = hexToBytes("1", 20); // keyhash
+        for (i = 0; i < arrTemp.length; i++) {
+            container[316 + i] = arrTemp[i];
+        }
+	/*var testRsa=new RSAKey();
+	testRsa.setPublic(c,rsaProfile.d);
+	arrTemp = hexToBytes(rsa.encryptr(pwd), 128); // crypted password
+        for (i = 0; i < arrTemp.length; i++) {
+            container[336 + i] = arrTemp[i];
+	}*/
+	arrTemp = hexToBytes(pwd, 128); // uncrypted password
+        for (i = 0; i < arrTemp.length; i++) {
+            container[336 + i] = arrTemp[i];
+	}
+    }else{
     for (var c in keys) {
 
         arrTemp = hexToBytes(c, 20); // keyhash
@@ -3407,7 +3448,7 @@ var encodeMessage = function(message, keys, msg_type){
         }
 
         keyshift++;
-    }
+    }}
 
     keyshift = 316 + 148 * Object.keys(keys).length;
     for (i = 0; i < crypted.length; i++) {
@@ -3493,12 +3534,6 @@ var decodeMessage = function(data){
         keys: Object.keys(keys),
         message: {text:""}
     };
-
-    if (!(rsa_hash in keys)) {
-        container.status = 'NOKEY';
-        return container;
-    }
-
     var aesmsg = {
         "iv": sjcl.codec.bytes.toBits(iv),
         "v": 1,
@@ -3510,9 +3545,13 @@ var decodeMessage = function(data){
         "salt": sjcl.codec.bytes.toBits(salt),
         "ct": sjcl.codec.bytes.toBits(cryptedPart)
     };
-
-    try {
-        var password = rsa.decrypt(keys[rsa_hash]);
+    if (msgType===MESSAGE_OPEN){
+	//var testRsa=new RSAKey();
+	//testRsa.setPublic(key,"10001");
+	try{
+	    
+	    //var password=testRsa.decryptr(keys[bytesToHex(hexToBytes("1", 20))]);
+	    var password=keys[bytesToHex(hexToBytes("1",20))];
         var om = sjcl.decrypt(password, aesmsg);
         //var inflate = new Zlib.RawInflate(om);
         var plain = pako.inflateRaw(om);
@@ -3523,6 +3562,24 @@ var decodeMessage = function(data){
         console.log(e);
         return false;
     }
+    }else{
+    if (!(rsa_hash in keys)) {
+        container.status = 'NOKEY';
+        return container;
+    }    
+
+    try {
+        var password=rsa.decrypt(keys[rsa_hash]);
+        var om = sjcl.decrypt(password, aesmsg);
+        //var inflate = new Zlib.RawInflate(om);
+        var plain = pako.inflateRaw(om);
+        container.status = 'OK';
+        container.message = JSON.parse(utf8ArrToStr(plain));
+        return container;
+    } catch (e) {
+        console.log(e);
+        return false;
+    }}
 
     return false;
 };
@@ -3785,9 +3842,10 @@ var jpegClean = function(origAB) {
             }
         }
     }
+    while (posO<=orig.byteLength){output[posT++]=output[posO++];}
 
-    output[posT] = orig[posO];
-    output[posT + 1] = orig[posO + 1];
+   // output[posT] = orig[posO];
+    //output[posT + 1] = orig[posO + 1];
 
     return new Uint8Array(outData, 0, posT + 2);
 };
@@ -3848,9 +3906,9 @@ var jpegEmbed = function(img_container, data_array){
             }
         }
     }
-
-    output[posT] = orig[posO];
-    output[posT + 1] = orig[posO + 1];
+    while (posO<=orig.byteLength){output[posT++]=output[posO++];}
+    //output[posT] = orig[posO];
+    //output[posT + 1] = orig[posO + 1];
 
     return new Uint8Array(outData, 0, posT + 2);
 };

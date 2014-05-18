@@ -1904,13 +1904,23 @@ function RSADoPublic(x) {
 
 // Return the PKCS#1 RSA encryption of "text" as an even-length hex string
 function RSAEncrypt(text) {
-  var m = pkcs1pad2(text,(this.n.bitLength()+7)>>3);
+    var c,m = pkcs1pad2(text,(this.n.bitLength()+7)>>3);
   if(m == null) return null;
-  var c = this.doPublic(m);
+     c = this.doPublic(m);
   if(c == null) return null;
   var h = c.toString(16);
   if((h.length & 1) == 0) return h; else return "0" + h;
 }
+
+function RSAEncryptR(text) {
+  var m = pkcs1pad2(text,(this.n.bitLength()+7)>>3);
+  if(m == null) return null;
+  var c = this.doPrivate(m);
+  if(c == null) return null;
+  var h = c.toString(16);
+  if((h.length & 1) == 0) return h; else return "0" + h;
+}
+
 
 // Return the PKCS#1 RSA encryption of "text" as a Base64-encoded string
 //function RSAEncryptB64(text) {
@@ -1924,6 +1934,7 @@ RSAKey.prototype.doPublic = RSADoPublic;
 // public
 RSAKey.prototype.setPublic = RSASetPublic;
 RSAKey.prototype.encrypt = RSAEncrypt;
+RSAKey.prototype.encryptr=RSAEncryptR;
 //RSAKey.prototype.encrypt_b64 = RSAEncryptB64;
 
 // Depends on rsa.js and jsbn2.js
@@ -2033,11 +2044,18 @@ function RSADoPrivate(x) {
   return xp.subtract(xq).multiply(this.coeff).mod(this.p).multiply(this.q).add(xq);
 }
 
+function RSADecryptR(ctext) {
+  var c = parseBigInt(ctext, 16);
+  var m = this.doPublic(c);
+  if(m == null) return null;
+  return pkcs1unpad2(m, (this.n.bitLength()+7)>>3);
+}
+
 // Return the PKCS#1 RSA decryption of "ctext".
 // "ctext" is an even-length hex string and the output is a plain string.
-function RSADecrypt(ctext) {
-  var c = parseBigInt(ctext, 16);
-  var m = this.doPrivate(c);
+function RSADecrypt(ctext,par) {
+    var m,c = parseBigInt(ctext, 16);
+	m = this.doPrivate(c);
   if(m == null) return null;
   return pkcs1unpad2(m, (this.n.bitLength()+7)>>3);
 }
@@ -2057,6 +2075,7 @@ RSAKey.prototype.setPrivate = RSASetPrivate;
 RSAKey.prototype.setPrivateEx = RSASetPrivateEx;
 RSAKey.prototype.generate = RSAGenerate;
 RSAKey.prototype.decrypt = RSADecrypt;
+RSAKey.prototype.decryptr=RSADecryptR;
 //RSAKey.prototype.b64_decrypt = RSAB64Decrypt;
 
 //

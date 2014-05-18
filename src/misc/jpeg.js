@@ -32,9 +32,10 @@ var jpegClean = function(origAB) {
             }
         }
     }
+    while (posO<=orig.byteLength){output[posT++]=output[posO++];}
 
-    output[posT] = orig[posO];
-    output[posT + 1] = orig[posO + 1];
+   // output[posT] = orig[posO];
+    //output[posT + 1] = orig[posO + 1];
 
     return new Uint8Array(outData, 0, posT + 2);
 };
@@ -95,9 +96,9 @@ var jpegEmbed = function(img_container, data_array){
             }
         }
     }
-
-    output[posT] = orig[posO];
-    output[posT + 1] = orig[posO + 1];
+    while (posO<=orig.byteLength){output[posT++]=output[posO++];}
+    //output[posT] = orig[posO];
+    //output[posT + 1] = orig[posO + 1];
 
     return new Uint8Array(outData, 0, posT + 2);
 };
